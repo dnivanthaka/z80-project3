@@ -133,7 +133,7 @@ ata_data_read:
 
     ld hl, ata_data
 ata_data_read_loop:
-    ld a, 0x30
+    ld a, 0x30               ;select data register as read
     out (IDECTRL_PORTC), a
     in a, (IDECTRL_PORTB)
     ld (hl), a
@@ -160,6 +160,29 @@ ata_data_read_loop:
 
     ret
 
+;register in A and data in ata_data
+ata_set_register:
+    call ata_wait_for_ready
+    
+    ld a, 0x80
+    out (IDECTRL_CTL), a
+    ld a, 0
+    out (IDECTRL_PORTB), a
+    ld hl, ata_reg_data
+    ld a, (hl) ;a = *hl
+    out (IDECTRL_PORTA), a
+    ;set command register write
+    ld hl, ata_reg
+    ld a, (hl)
+    or 0x50
+    out (IDECTRL_PORTC), a ; Set control lines 
+    ld a, 0
+    out (IDECTRL_PORTC), a ; Set control lines 
+    ld a, 0x92
+    out (IDECTRL_CTL), a
+
+    ret
+
 ;==================================================================================
 ata_drive_reset:
 
@@ -168,6 +191,9 @@ ata_drive_reset:
 ;==================================================================================
 ata_read_status:
     push bc 
+    ;set input mode
+    ld a, 0x92
+    out (IDECTRL_CTL), a
     ld a, 0x37
     out (IDECTRL_PORTC), a ; Set control lines 
     in a, (IDECTRL_PORTB) ; lower byte 2nd

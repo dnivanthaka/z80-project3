@@ -5,6 +5,8 @@ IDECTRL_BASE   .equ 0x01
 RAM_TOP .equ 0xffff
 
 ata_data  .equ 0x8000
+ata_reg      .equ 0x9000
+ata_reg_data .equ 0x9001
 
 .ORG 0x0000
     di
@@ -146,19 +148,24 @@ MAIN:
     ;call uart_output
     
     ;writng 0xec command
-    ld a, 0x80
-    out (IDECTRL_CTL), a
-    ld a, 0
-    out (IDECTRL_PORTB), a
+    ; ld a, 0x80
+    ; out (IDECTRL_CTL), a
+    ; ld a, 0
+    ; out (IDECTRL_PORTB), a
+    ; ld a, 0xec
+    ; out (IDECTRL_PORTA), a
+    ; ;set command register write
+    ; ;ld a, 0x92
+    ; ;out (IDECTRL_CTL), a
+    ; ld a, 0x57
+    ; out (IDECTRL_PORTC), a ; Set control lines 
+    ; ;ld a, 0x92
+    ;out (IDECTRL_CTL), a
+    ld a, ATA_REGSTAT
+    ld (ata_reg), a
     ld a, 0xec
-    out (IDECTRL_PORTA), a
-    ;set command register write
-    ;ld a, 0x92
-    ;out (IDECTRL_CTL), a
-    ld a, 0x57
-    out (IDECTRL_PORTC), a ; Set control lines 
-    ;ld a, 0x92
-    ;out (IDECTRL_CTL), a
+    ld (ata_reg_data), a
+    call ata_set_register
     call ata_wait_for_drq
     ;call uart_hex2ascii
     ;read data register
@@ -201,97 +208,132 @@ MAIN:
     ld a, 10
     call uart_putchar
 
-    call ata_wait_for_ready
+    ;call ata_wait_for_ready
     
     ;reading 0 sector
-    
-    ;setting LBA addresses
-    ld a, 0x80
-    out (IDECTRL_CTL), a
+    ld a, ATA_REGLBA1
+    ld (ata_reg), a
     ld a, 0
-    out (IDECTRL_PORTB), a
-    ld a, 0x00
-    out (IDECTRL_PORTA), a
-    ;set command register write
-    ld a, 0x53
-    out (IDECTRL_PORTC), a ; Set control lines 
-    ;ld a, 0
-    ;out (IDECTRL_PORTC), a ; Set control lines 
-    
-    call ata_wait_for_ready
-    
-    ;setting LBA addresses
-    ld a, 0x80
-    out (IDECTRL_CTL), a
-    ld a, 0
-    out (IDECTRL_PORTB), a
-    ld a, 0x00
-    out (IDECTRL_PORTA), a
-    ;set command register write
-    ld a, 0x54
-    out (IDECTRL_PORTC), a ; Set control lines 
-    ;ld a, 0
-    ;out (IDECTRL_PORTC), a ; Set control lines 
-    
-    call ata_wait_for_ready
-    
-    ;setting LBA addresses
-    ld a, 0x80
-    out (IDECTRL_CTL), a
-    ld a, 0
-    out (IDECTRL_PORTB), a
-    ld a, 0x00
-    out (IDECTRL_PORTA), a
-    ;set command register write
-    ld a, 0x55
-    out (IDECTRL_PORTC), a ; Set control lines 
-    ;ld a, 0
-    ;out (IDECTRL_PORTC), a ; Set control lines 
-    
-    call ata_wait_for_ready
+    ld (ata_reg_data), a
+    call ata_set_register
 
-    ;setting LBA addresses
-    ld a, 0x80
-    out (IDECTRL_CTL), a
+    ld a, ATA_REGLBA2
+    ld (ata_reg), a
     ld a, 0
-    out (IDECTRL_PORTB), a
+    ld (ata_reg_data), a 
+    call ata_set_register
+
+    ld a, ATA_REGLBA3
+    ld (ata_reg), a
+    ld a, 0
+    ld (ata_reg_data), a
+    call ata_set_register
+
+    ld a, ATA_REGLBA4
+    ld (ata_reg), a
     ld a, 0xe0
-    out (IDECTRL_PORTA), a
-    ;set command register write
-    ld a, 0x56
-    out (IDECTRL_PORTC), a ; Set control lines 
-    ;ld a, 0
-    ;out (IDECTRL_PORTC), a ; Set control lines 
-    
-    call ata_wait_for_ready
-    
-    ;setting sector count
-    ld a, 0x80
-    out (IDECTRL_CTL), a
-    ld a, 0
-    out (IDECTRL_PORTB), a
-    ld a, 0x01
-    out (IDECTRL_PORTA), a
-    ;set command register write
-    ld a, 0x52
-    out (IDECTRL_PORTC), a ; Set control lines 
-    ;ld a, 0
-    ;out (IDECTRL_PORTC), a ; Set control lines 
+    ld (ata_reg_data), a
+    call ata_set_register
 
-    call ata_wait_for_ready
-    
-    ;send command 0x20
-    ld a, 0x80
-    out (IDECTRL_CTL), a
-    ld a, 0
-    out (IDECTRL_PORTB), a
+    ld a, ATA_REGSECTS
+    ld (ata_reg), a
+    ld a, 0x01
+    ld (ata_reg_data), a
+    call ata_set_register
+
+    ld a, ATA_REGSTAT
+    ld (ata_reg), a
     ld a, 0x20
-    out (IDECTRL_PORTA), a
-    ;set command register write
-    ld a, 0x57
-    out (IDECTRL_PORTC), a ; Set control lines 
-    ;ld a, 0
-    ;out (IDECTRL_PORTC), a ; Set control lines 
+    ld (ata_reg_data), a
+    call ata_set_register
+    
+    ;setting LBA addresses
+    ; ld a, 0x80
+    ; out (IDECTRL_CTL), a
+    ; ld a, 0
+    ; out (IDECTRL_PORTB), a
+    ; ld a, 0x00
+    ; out (IDECTRL_PORTA), a
+    ; ;set command register write
+    ; ld a, 0x53
+    ; out (IDECTRL_PORTC), a ; Set control lines 
+    ; ;ld a, 0
+    ; ;out (IDECTRL_PORTC), a ; Set control lines 
+    
+    ; call ata_wait_for_ready
+    
+    ; ;setting LBA addresses
+    ; ld a, 0x80
+    ; out (IDECTRL_CTL), a
+    ; ld a, 0
+    ; out (IDECTRL_PORTB), a
+    ; ld a, 0x00
+    ; out (IDECTRL_PORTA), a
+    ; ;set command register write
+    ; ld a, 0x54
+    ; out (IDECTRL_PORTC), a ; Set control lines 
+    ; ;ld a, 0
+    ; ;out (IDECTRL_PORTC), a ; Set control lines 
+    
+    ; call ata_wait_for_ready
+    
+    ; ;setting LBA addresses
+    ; ld a, 0x80
+    ; out (IDECTRL_CTL), a
+    ; ld a, 0
+    ; out (IDECTRL_PORTB), a
+    ; ld a, 0x00
+    ; out (IDECTRL_PORTA), a
+    ; ;set command register write
+    ; ld a, 0x55
+    ; out (IDECTRL_PORTC), a ; Set control lines 
+    ; ;ld a, 0
+    ; ;out (IDECTRL_PORTC), a ; Set control lines 
+    
+    ; call ata_wait_for_ready
+
+    ; ;setting LBA addresses
+    ; ld a, 0x80
+    ; out (IDECTRL_CTL), a
+    ; ld a, 0
+    ; out (IDECTRL_PORTB), a
+    ; ld a, 0xe0
+    ; out (IDECTRL_PORTA), a
+    ; ;set command register write
+    ; ld a, 0x56
+    ; out (IDECTRL_PORTC), a ; Set control lines 
+    ; ;ld a, 0
+    ; ;out (IDECTRL_PORTC), a ; Set control lines 
+    
+    ; call ata_wait_for_ready
+    
+    ; ;setting sector count
+    ; ld a, 0x80
+    ; out (IDECTRL_CTL), a
+    ; ld a, 0
+    ; out (IDECTRL_PORTB), a
+    ; ld a, 0x01
+    ; out (IDECTRL_PORTA), a
+    ; ;set command register write
+    ; ld a, 0x52
+    ; out (IDECTRL_PORTC), a ; Set control lines 
+    ; ;ld a, 0
+    ; ;out (IDECTRL_PORTC), a ; Set control lines 
+
+    ; call ata_wait_for_ready
+    
+    ; ;send command 0x20
+    ; ld a, 0x80
+    ; out (IDECTRL_CTL), a
+    ; ld a, 0
+    ; out (IDECTRL_PORTB), a
+    ; ld a, 0x20
+    ; out (IDECTRL_PORTA), a
+    ; ;set command register write
+    ; ld a, 0x57
+    ; out (IDECTRL_PORTC), a ; Set control lines 
+    ; ;ld a, 0
+    ; ;out (IDECTRL_PORTC), a ; Set control lines 
 
 ;l1:
     ;call ata_read_status
