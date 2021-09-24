@@ -2,11 +2,19 @@ BANKSEL   .equ 0x00
 ;ROMDIS    .equ 0x01
 IDECTRL_BASE   .equ 0x01
 
-RAM_TOP .equ 0xffff
+RAM_TOP   .equ 0xffff
+RAM_START .equ 0x2000
 
-ata_data  .equ 0x8000
-ata_reg      .equ 0x9000
-ata_reg_data .equ 0x9001
+
+ata_data       .equ 0x8000
+ata_reg        .equ 0x9000
+ata_reg_data   .equ 0x9001
+
+ata_lba_addr0  .equ 0x9002   
+ata_lba_addr1  .equ 0x9003
+ata_lba_addr2  .equ 0x9004
+ata_lba_addr3  .equ 0x9005
+ata_sect_count .equ 0x9006 
 
 .ORG 0x0000
     di
@@ -38,11 +46,6 @@ MAIN:
     ;out (BANKSEL), A
 
     call uart_init
-
-    ld hl, STR_VERSION
-    call uart_print_str
-    ld hl, STR_DETECTHDD
-    call uart_print_str
 
     ;register = status = 0x07
 
@@ -109,6 +112,11 @@ MAIN:
      ;ld A, 0x14
      ;call uart_output
     call ata_init
+    
+    ld hl, STR_VERSION
+    call uart_print_str
+    ld hl, STR_DETECTHDD
+    call uart_print_str
 
     ;ld a, 0x80
     ;out (IDECTRL_CTL), a
@@ -171,7 +179,7 @@ MAIN:
     ;read data register
 ;     ld a, 0x92
 ;     out (IDECTRL_CTL), a
-    ld a, 0xff
+    ld a, 0              ;read 256 words
     call ata_data_read
 
 ;     ld b, 0xff
@@ -196,7 +204,6 @@ MAIN:
 ;     ;call uart_putchar
 ;     djnz test_loop
 
-
     ld a, 0x92
     out (IDECTRL_CTL), a
     ;ld a, 0x80
@@ -208,45 +215,74 @@ MAIN:
     ld a, 10
     call uart_putchar
 
-    ;call ata_wait_for_ready
-    
-    ;reading 0 sector
-    ld a, ATA_REGLBA1
+    ;disabling cache
+    ld a, ATA_REGFEAT
     ld (ata_reg), a
-    ld a, 0
-    ld (ata_reg_data), a
-    call ata_set_register
-
-    ld a, ATA_REGLBA2
-    ld (ata_reg), a
-    ld a, 0
-    ld (ata_reg_data), a 
-    call ata_set_register
-
-    ld a, ATA_REGLBA3
-    ld (ata_reg), a
-    ld a, 0
-    ld (ata_reg_data), a
-    call ata_set_register
-
-    ld a, ATA_REGLBA4
-    ld (ata_reg), a
-    ld a, 0xe0
-    ld (ata_reg_data), a
-    call ata_set_register
-
-    ld a, ATA_REGSECTS
-    ld (ata_reg), a
-    ld a, 0x01
+    ld a, 0x55             ;disable cache
     ld (ata_reg_data), a
     call ata_set_register
 
     ld a, ATA_REGSTAT
     ld (ata_reg), a
-    ld a, 0x20
+    ld a, 0xef
     ld (ata_reg_data), a
     call ata_set_register
+    call ata_wait_for_ready
     
+    ;reading 0 sector
+    ; ld a, ATA_REGLBA1
+    ; ld (ata_reg), a
+    ; ld a, 0
+    ; ld (ata_reg_data), a
+    ; call ata_set_register
+
+    ; ld a, ATA_REGLBA2
+    ; ld (ata_reg), a
+    ; ld a, 0
+    ; ld (ata_reg_data), a 
+    ; call ata_set_register
+
+    ; ld a, ATA_REGLBA3
+    ; ld (ata_reg), a
+    ; ld a, 0
+    ; ld (ata_reg_data), a
+    ; call ata_set_register
+
+    ; ld a, ATA_REGLBA4
+    ; ld (ata_reg), a
+    ; ld a, 0xe0
+    ; ld (ata_reg_data), a
+    ; call ata_set_register
+
+    ; ld a, ATA_REGSECTS
+    ; ld (ata_reg), a
+    ; ld a, 0x01
+    ; ld (ata_reg_data), a
+    ; call ata_set_register
+
+    ; ld a, ATA_REGSTAT
+    ; ld (ata_reg), a
+    ; ld a, 0x20
+    ; ld (ata_reg_data), a
+    ; call ata_set_register
+
+    ld hl, ata_lba_addr0
+    ld a, 0
+    ld (hl), a
+    ld hl, ata_lba_addr1
+    ld a, 0
+    ld (hl), a
+    ld hl, ata_lba_addr2
+    ld a, 0
+    ld (hl), a
+    ld hl, ata_lba_addr3
+    ld a, 0
+    ld (hl), a
+    ld hl, ata_sect_count
+    ld a, 0x1
+    ld (hl), a 
+
+    call ata_read_sector
     ;setting LBA addresses
     ; ld a, 0x80
     ; out (IDECTRL_CTL), a
@@ -339,13 +375,29 @@ MAIN:
     ;call ata_read_status
     ;call uart_hex2ascii
     ;jr l1 
-    call ata_wait_for_drq
+    ;call ata_wait_for_drq
 
-    ld a, 0xff
-    call ata_data_read
+    ;ld a, 0            ;read 256 words
+    ;call ata_data_read
+    ;ld a, 1
+    ;call ata_data_read
 
-    ld b, 0xff     ;index of last word
+    ;call ata_read_status
+    ;call uart_hex2ascii
+
+    ;call ata_read_status
+    ;call uart_hex2ascii
+
+    ;ld a, 0x10
+    ;call uart_putchar
+
+    ld d, 0     ;printing 256 bytes
     ld hl, ata_data
+    ; ld a, (hl)
+    ; call uart_hex2ascii
+    ; inc hl
+    ; ld a, (hl)
+    ; call uart_hex2ascii
 test_print:
     ;print offset value
     ;ld a, b
@@ -358,7 +410,12 @@ test_print:
     inc hl
     ld a, 0x10 
     call uart_putchar
-    djnz test_print
+    dec d
+    jr nz, test_print
+    ld a, 0x13 
+    call uart_putchar
+    ld a, 0x10 
+    call uart_putchar
 
 ;l1:
     ;call ata_read_status
@@ -450,11 +507,34 @@ delay_ms_lp:
     pop af
     ret
 
+; ram_test:
+;     push af
+;     push bc
+
+;     ld hl, RAM_TEST_PATTERNS
+;     ld b, (hl)
+;     ld hl, RAM_START
+; ram_test_loop1:
+;     ;test here
+;     ld a, 0
+;     ld (hl), a
+;     inc hl
+;     ld ix, hl
+;     ld a, ixh
+;     xor ixl
+;     jr nz, ram_test_loop1
+;     pop bc
+;     pop af
+
+;     ret
+
 STR_VERSION .db 13, 10, "Z80 Boot BIOS v0.9, By Dinusha Amerasinghe" ,13, 10, 0
 STR_DETECTHDD .db "Detecting fixed disk ...", 13, 10, 0
 STR_FOUNDHDD .db "Found", 0
 STR_NOTFOUNDHDD .db "Not Found", 13, 10, 0
 STR_NOBOOTDEVICE .db "No boot device present", 13, 10, 0
+
+RAM_TEST_PATTERNS .db 0xff, 0x55, 0xaa, 0
 
 #include "uart_scc2692.asm" 
 #include "ide_cntl8255.asm"
