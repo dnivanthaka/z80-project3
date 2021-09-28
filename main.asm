@@ -5,7 +5,6 @@ IDECTRL_BASE   .equ 0x01
 RAM_TOP   .equ 0xffff
 RAM_START .equ 0x2000
 
-
 ata_data       .equ 0x8000
 ata_reg        .equ 0x9000
 ata_reg_data   .equ 0x9001
@@ -228,6 +227,52 @@ MAIN:
     ld (ata_reg_data), a
     call ata_set_register
     call ata_wait_for_ready
+
+;     ld hl, ata_data
+;     ld b, 0
+; test_write_loop:
+;     ld a, 0xaa
+;     ld (hl), a
+;     inc hl
+;     ld a, 0x55
+;     ld (hl), a
+;     inc hl
+;     djnz test_write_loop
+
+    ;call test_dump
+
+
+;     ld hl, ata_lba_addr0
+;     ld a, 0x05
+;     ld (hl), a
+;     ld hl, ata_lba_addr1
+;     ld a, 0
+;     ld (hl), a
+;     ld hl, ata_lba_addr2
+;     ld a, 0
+;     ld (hl), a
+;     ld hl, ata_lba_addr3
+;     ld a, 0
+;     ld (hl), a
+;     ld hl, ata_sect_count
+;     ld a, 0x1
+;     ld (hl), a 
+
+;     call ata_write_sector
+;     call ata_wait_for_ready
+
+;     ld hl, ata_data
+;     ld b, 0
+; test_write_loop2:
+;     ld a, 0
+;     ld (hl), a
+;     inc hl
+;     ld a, 0
+;     ld (hl), a
+;     inc hl
+;     djnz test_write_loop2
+;     call ata_wait_for_ready
+
     
     ;reading 0 sector
     ; ld a, ATA_REGLBA1
@@ -267,7 +312,7 @@ MAIN:
     ; call ata_set_register
 
     ld hl, ata_lba_addr0
-    ld a, 0
+    ld a, 0x05
     ld (hl), a
     ld hl, ata_lba_addr1
     ld a, 0
@@ -356,7 +401,7 @@ MAIN:
     ; ;ld a, 0
     ; ;out (IDECTRL_PORTC), a ; Set control lines 
 
-    ; call ata_wait_for_ready
+    call ata_wait_for_ready
     
     ; ;send command 0x20
     ; ld a, 0x80
@@ -393,11 +438,6 @@ MAIN:
 
     ld d, 0     ;printing 256 bytes
     ld hl, ata_data
-    ; ld a, (hl)
-    ; call uart_hex2ascii
-    ; inc hl
-    ; ld a, (hl)
-    ; call uart_hex2ascii
 test_print:
     ;print offset value
     ;ld a, b
@@ -527,6 +567,36 @@ delay_ms_lp:
 ;     pop af
 
 ;     ret
+test_dump:
+    ld d, 0     ;printing 256 bytes
+    ld hl, ata_data
+test_dump_loop:
+    ld a, (hl)
+    call uart_hex2ascii
+    inc hl
+    ld a, (hl)
+    call uart_hex2ascii
+    inc hl
+    ld a, 0x10 
+    call uart_putchar
+    dec d
+    jr nz, test_dump_loop
+    ld a, 0x13 
+    call uart_putchar
+    ld a, 0x10 
+    call uart_putchar
+
+memset:
+    push af
+    push bc
+
+    ld b, a
+memset_loop:
+    
+    djnz memset_loop
+    pop bc
+    pop af
+    ret
 
 STR_VERSION .db 13, 10, "Z80 Boot BIOS v0.9, By Dinusha Amerasinghe" ,13, 10, 0
 STR_DETECTHDD .db "Detecting fixed disk ...", 13, 10, 0

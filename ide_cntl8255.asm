@@ -42,7 +42,7 @@ ata_init:
     in a, (IDECTRL_PORTA) ; lower byte
     ld a, 0x56
     out (IDECTRL_PORTC), a ; Set control lines 
-    nop
+    ;nop
     ld a, 0x92
     out (IDECTRL_CTL), a ; DATA port as input and control port as output
 
@@ -127,33 +127,8 @@ ata_read:
 ata_read_sector:
     push af
     push bc
-
-    ; ld hl, 4
-    ; add hl, sp
-
-    ; ld bc, (hl)     ;LBA 0-15 address
-    ; ld de, ata_lba_addr0
-    ; ld a, c
-    ; ld (de), a
-    ; ld de, ata_lba_addr1
-    ; ld a, b
-    ; ld (de), a
-
-    ; inc hl
-
-    ; ld bc, (hl)     ;LBA 0-15 address
-    ; ld de, ata_lba_addr2 ;LBA 16-31
-    ; ld a, c
-    ; ld (de), a
-    ; ld de, ata_lba_addr3
-    ; ld a, b
-    ; ld (de), a
-
-    ; inc hl
-
-    ; ld bc, (hl)     ; sector count 16bit
-    ; ld de, ata_sect_count
-    ; ld (de), bc
+    
+    call ata_wait_for_ready
 
     ld a, ATA_REGLBA0
     ld (ata_reg), a
@@ -208,6 +183,60 @@ ata_read_sector:
     ret
 
 ata_write_sector:
+    push af
+    push bc
+    
+    call ata_wait_for_ready
+
+    ld a, ATA_REGLBA0
+    ld (ata_reg), a
+    ld hl, ata_lba_addr0
+    ld a, (hl) 
+    ld (ata_reg_data), a
+    call ata_set_register
+
+    ld a, ATA_REGLBA1
+    ld (ata_reg), a
+    ld hl, ata_lba_addr1
+    ld a, (hl)
+    ld (ata_reg_data), a 
+    call ata_set_register
+
+    ld a, ATA_REGLBA2
+    ld (ata_reg), a
+    ld hl, ata_lba_addr2
+    ld a, (hl) 
+    ld (ata_reg_data), a
+    call ata_set_register
+
+    ld a, ATA_REGLBA3
+    ld (ata_reg), a
+    ld hl, ata_lba_addr3
+    ld a, (hl)
+    or 0xe0 
+    ld (ata_reg_data), a
+    call ata_set_register
+
+    ld a, ATA_REGSECTS
+    ld (ata_reg), a
+    ld hl, ata_sect_count
+    ld a, (hl)
+    ld (ata_reg_data), a
+    call ata_set_register
+
+    ld a, ATA_REGSTAT
+    ld (ata_reg), a
+    ld a, 0x30
+    ld (ata_reg_data), a
+    call ata_set_register
+
+    call ata_wait_for_drq
+
+    ld a, 0            ;write 256 words
+    call ata_data_write
+
+    pop bc
+    pop af
 
     ret
 
@@ -220,17 +249,20 @@ ata_data_read:
 
     ld hl, ata_data
 ata_data_read_loop:
-    call ata_wait_for_drq
+    ;call ata_wait_for_drq
     ld a, 0x30               ;select data register as read
     out (IDECTRL_PORTC), a
+    
+    in a, (IDECTRL_PORTB)    ;Big endian format
+    ld (hl), a
+    inc hl
     in a, (IDECTRL_PORTA)
     ld (hl), a
     inc hl
-    in a, (IDECTRL_PORTB)
-    ld (hl), a
-    inc hl
+
     ld a, 0
     out (IDECTRL_PORTC), a
+    nop
     djnz ata_data_read_loop
     pop bc
     pop af
@@ -246,17 +278,18 @@ ata_data_write:
 
     ld hl, ata_data
 ata_data_write_loop:
-    call ata_wait_for_drq
+    ;call ata_wait_for_drq
     ld a, 0x50               ;select data register as write
     out (IDECTRL_PORTC), a
     ld a, (hl)
-    out (IDECTRL_PORTB), a
+    out (IDECTRL_PORTB), a   ;Big endian format
     inc hl
     ld a, (hl)
     out (IDECTRL_PORTA), a
     inc hl
     ld a, 0
     out (IDECTRL_PORTC), a
+    nop
     djnz ata_data_write_loop
     ld a, 0x92
     out (IDECTRL_CTL), a
@@ -271,6 +304,7 @@ ata_set_register:
     
     ld a, 0x80
     out (IDECTRL_CTL), a
+    ;set command register write
     ld hl, ata_reg
     ld a, (hl)
     or 0x50
@@ -281,13 +315,8 @@ ata_set_register:
     ld hl, ata_reg_data
     ld a, (hl) ;a = *hl
     out (IDECTRL_PORTA), a
-    ;set command register write
-    ;call uart_hex2ascii
-    ;ld a, ' '
-    ;call uart_putchar
     ld a, 0
     out (IDECTRL_PORTC), a ; Set control lines 
-    nop
     ld a, 0x92
     out (IDECTRL_CTL), a
 
@@ -295,6 +324,7 @@ ata_set_register:
 
 ;register in ata_reg and data in ata_data 
 ata_get_register:
+    push af
     call ata_wait_for_ready
     
     ld a, 0x92
@@ -309,6 +339,7 @@ ata_get_register:
     ld (hl), a
     ld a, 0
     out (IDECTRL_PORTC), a ; Set control lines 
+    pop af
 
     ret
 ;==================================================================================
@@ -331,11 +362,8 @@ ata_read_status:
     out (IDECTRL_PORTC), a ; Set control lines 
     ld a, b
     pop bc 
+
     ret
 
 ;==================================================================================
 
-;ata_data  .db 0
-ata_cntrl .db 0xff
-tempdata .db 0
-tempdata2 .db 'Z' 
